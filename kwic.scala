@@ -1,6 +1,8 @@
 import scala.collection.mutable.{Map, HashMap,ListBuffer}
 import scala.collection.immutable.StringOps
-import java.io.PrintWriter
+import scala.util.control.Exception._
+
+import java.io.FileWriter
 
 class Record(line: Int, content: String) {
   val rindex   = line
@@ -10,13 +12,14 @@ class Record(line: Int, content: String) {
 }
 
 class KWICFile(filename: String) {
+  
   val fileName  = filename
-
-  // TODO: close file descriptor
-  val lines     = scala.io.Source.fromFile(filename).getLines.toArray
+  val fileSource = scala.io.Source.fromFile(filename)
+  val lines     = fileSource.getLines.toArray
   val kwicMap   = new HashMap[String, ListBuffer[Record]]
- 
-  // keyword must be lower case
+
+  fileSource.close()
+  
   def keywordInContext(keyword: String) : ListBuffer[Record] =  {
 
     // Transform every line in a pair of (line, content) and filter out
@@ -31,11 +34,13 @@ class KWICFile(filename: String) {
   }
 
   // Write to the output file following the project's requirements
-  // TODO: avoid loops
-  private def formatOutput() : String = {
+  // TODO: avoid loops, alphabetical order
+  def formatOutput() : String = {
     var ret : String = this.fileName + "\n"
     for ((k,v) <- this.kwicMap) {
+      println("Keyword " + k)
       v.foreach( (item) => {
+        println(item)
         ret += item.rindex + " "
         ret += item.rcontent + "\n"
       })
@@ -43,8 +48,8 @@ class KWICFile(filename: String) {
     ret
   }
 
-  def writeToFile(output : PrintWriter) : Unit = {
-    output.println(this.formatOutput)
+  def writeToFile(output : FileWriter) : Unit = {
+    output.write(this.formatOutput)
   }
 
   override def toString(): String = {
@@ -53,6 +58,8 @@ class KWICFile(filename: String) {
     this.formatOutput
   }
 }
+
+class AllDoneException extends java.lang.Exception 
 
 object KWICFile {
 
@@ -79,18 +86,51 @@ object KWICFile {
 
 object KWICUserInteraction {
 
-  // TODO: exception if file not found, what do to ?
-  val stopWords : Array[String]    = scala.io.Source.fromFile("./stop-words.txt").getLines.toArray
-  val files : ListBuffer[KWICFile] = ListBuffer()
-  
-  def readFile() : Unit = {
-    var path : String = ""
-    val lines = Iterator.continually(readLine()).takeWhile(_ != null).mkString
+  def main(args : Array[String]) : Unit =  {
+    
+    try {
+      val outputFilename               = "output.txt"
+      val fileStream                   = scala.io.Source.fromFile("./stop-words.txt")
+      val stopWords : Array[String]    = fileStream.getLines.toArray
+
+      fileStream.close()
+      println ("File stop-words.txt loaded successfully : " +
+        stopWords.length +
+        " words found")
+      val fileWriter = new FileWriter(outputFilename, true)
+
+      // Read files' path from the standard input
+      while (true) {
+        val path = readLine()
+        println("Processing file " + path)
+        if (path.length == 0)
+          throw new AllDoneException()
+        try {
+          val kwicFile = new KWICFile(path)
+          for (keyword <- stopWords)
+            kwicFile.keywordInContext(keyword)
+          kwicFile.writeToFile(fileWriter)
+          println(kwicFile.formatOutput)
+          fileWriter.flush()
+        } catch {
+          case ex: java.io.FileNotFoundException => {
+            ex.printStackTrace()
+            println("""The mandatory file "stop-words.txt" is not present in the current directory. Aborting""")
+            java.lang.System.exit(1)
+          }
+        }
+      }
+    } catch {
+      case ex: java.io.FileNotFoundException => {
+        ex.printStackTrace()
+        println("""The mandatory file "stop-words.txt" is not present in the current directory. Aborting""")
+        java.lang.System.exit(1)
+      }
+      case ex: AllDoneException => {
+        println("Execution terminated")
+        return
+      }
+    }
   }
 }
-
-var test = new KWICFile("test.file")
-val res = test.keywordInContext("match")
-//println(res.mkString("\n"))
-println(test)
-KWICUserInteraction.readFile
+KWICUserInteraction.main(null)
