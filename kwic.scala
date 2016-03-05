@@ -4,6 +4,9 @@ import scala.util.control.Exception._
 
 import java.io.FileWriter
 
+// Pietro Paolini - Birkbeck University
+// Programming Paradigms 2015/2016 Scala programming coursework
+
 class Record(line: Int, content: String) {
   val rindex   = line
   val rcontent = content
@@ -18,33 +21,40 @@ class KWICFile(filename: String) {
   val lines     = fileSource.getLines.toArray
   val kwicMap   = new LinkedHashMap[String, ListBuffer[Record]]
 
+
   fileSource.close()
   
   def keywordInContext(keyword: String) : ListBuffer[Record] =  {
 
-    // Transform every line in a pair of (line, content) and filter out
-    // the line not containing the specific keyword
+    /* 
+     * Transform every line in a pair of (line, content) then filter out
+     * out all lines not containing the specific keyword
+     */
     val filtered     = this.lines.zipWithIndex.filter(_._1.contains(keyword))
     val list         = ListBuffer[Record]()
     val unwantedChar = """[0-9]|\.|;|,|"|:""".r
 
     for (line <- filtered) {
-      // Strip all the undesired punctuation and digits
-      var transformedLine = unwantedChar.replaceAllIn(line._1.toLowerCase, "")
-      println("Line "  + transformedLine)
-      val keywordIndex = transformedLine.indexOf(keyword) - 1
-      println("Index " + keywordIndex)
-      var stringLeft = transformedLine.substring(0, scala.math.max(0, keywordIndex))
-      println("Left two " + stringLeft)
-      if (stringLeft.length > 30)
-        stringLeft =  stringLeft.substring(stringLeft.length - 30 , 30)
-      var stringRight = transformedLine.substring(keywordIndex + keyword.length + 1, transformedLine.length)
-      if (stringRight.length > 30)
-        stringRight = stringRight.substring(0, scala.math.min(stringRight.length, 29))
 
-      println("String left " + stringLeft)
-      println("String right " + stringRight)
-      println("String keyword " + keyword)
+      /* Transform the string following the project's requirement :
+       * 1) Make a copy of it
+       * 2) Lowercase
+       * 3) Remove digits and punctuation except apostrophes
+       * 4) Add text justification
+       */
+      var transformedLine = unwantedChar.replaceAllIn(line._1.toLowerCase, "")
+      val keywordIndex = transformedLine.indexOf(keyword) - 1
+      var stringLeft = transformedLine.substring(0, scala.math.max(0, keywordIndex))
+
+      // Cut the string at 30 chars
+      if (stringLeft.length > 30)
+        stringLeft =  stringLeft.substring(stringLeft.length - 1 - 30 , stringLeft.length - 1)
+      var stringRight = transformedLine.substring(keywordIndex + keyword.length + 1, transformedLine.length)
+
+      // Cut the string at 30 chars
+      if (stringRight.length > 30)
+        stringRight = stringRight.substring(0, scala.math.min(stringRight.length, 30))
+
       // Left and right justification
       val justifiedLeft  = " " * (30 - stringLeft.length)
       val justifiedRight = " " * (30 - stringRight.length)
@@ -55,11 +65,16 @@ class KWICFile(filename: String) {
     list
   }
 
-  // Write to the output file following the project's requirements
-  // TODO: avoid loops, alphabetical order
+  /* 
+   * Format an output string following the project's requirements
+   * 1) Filename
+   * 2) Keyword in alphabetical order
+   */
   def formatOutput() : String = {
     var ret : String = this.fileName + "\n"
     for ((k,v) <- this.kwicMap) {
+
+      // High order function usage
       v.foreach( (item) => {
         ret += item.rindex + " "
         ret += item.rcontent + "\n"
@@ -68,6 +83,7 @@ class KWICFile(filename: String) {
     ret
   }
 
+  /* Writes the output to the provided file */
   def writeToFile(output : FileWriter) : Unit = {
     output.write(this.formatOutput)
   }
@@ -79,21 +95,12 @@ class KWICFile(filename: String) {
   }
 }
 
+/* Exception used to handle the case where the user entered an empty path to end
+ * the program execution
+ */
 class AllDoneException extends java.lang.Exception 
 
 object KWICFile {
-
-  val digitRE       = """[0-9]""".r
-  val punctuationRE = """.|;|,|"|:""".r 
-
-  /* Transform the string following the project's requirement :
-   * 1) Make a copy of it
-   * 2) Lowercase
-   * 3) Remove digits and punctuation except apostrophes
-   */
-}
-
-object KWICUserInteraction {
 
   def main(args : Array[String]) : Unit =  {
     
@@ -103,8 +110,12 @@ object KWICUserInteraction {
       val stopWords : Array[String]    = fileStream.getLines.toArray
 
       fileStream.close()
-      scala.util.Sorting.quickSort(stopWords)
 
+      // The LinkedHashMap data structure used by the KWICFile to implement the
+      // map assures keys to be iterated in the same order as they were
+      // inserted, as a result of that sorting the stop words array causes the
+      // Map to return an alphabetical ordered iterator
+      scala.util.Sorting.quickSort(stopWords)
       println ("File stop-words.txt loaded successfully : " +
         stopWords.length +
         " words found")
@@ -113,23 +124,17 @@ object KWICUserInteraction {
       // Read files' path from the standard input
       while (true) {
         val path = readLine()
-        println("Processing file " + path)
         if (path.length == 0)
           throw new AllDoneException()
         try {
           val kwicFile = new KWICFile(path)
-          for (keyword <- stopWords) {
-            println("Examining keyword " + keyword)
+          for (keyword <- stopWords)
             kwicFile.keywordInContext(keyword)
-          }
           kwicFile.writeToFile(fileWriter)
-          println(kwicFile.formatOutput)
           fileWriter.flush()
         } catch {
           case ex: java.io.FileNotFoundException => {
-            ex.printStackTrace()
-            println("""The mandatory file "stop-words.txt" is not present in the current directory. Aborting""")
-            java.lang.System.exit(1)
+            println("""File not found, please try again""")
           }
         }
       }
@@ -146,4 +151,6 @@ object KWICUserInteraction {
     }
   }
 }
-KWICUserInteraction.main(null)
+
+
+//KWICUserInteraction.main(null)
