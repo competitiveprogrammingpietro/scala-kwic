@@ -28,7 +28,7 @@ class KWICFile(filename: String) {
 
     /* 
      * Transform every line in a pair of (line, content) then filter out
-     * out all lines not containing the specific keyword
+     * all lines not containing the specific keyword
      */
     val filtered     = this.lines.zipWithIndex.filter(_._1.contains(keyword))
     val list         = ListBuffer[Record]()
@@ -39,19 +39,19 @@ class KWICFile(filename: String) {
       /* Transform the string following the project's requirement :
        * 1) Make a copy of it
        * 2) Lowercase
-       * 3) Remove digits and punctuation except apostrophes
+       * 3) Remove digits and punctuations except apostrophes
        * 4) Add text justification
        */
       var transformedLine = unwantedChar.replaceAllIn(line._1.toLowerCase, "")
       val keywordIndex = transformedLine.indexOf(keyword) - 1
       var stringLeft = transformedLine.substring(0, scala.math.max(0, keywordIndex))
 
-      // Cut the string at 30 chars
+      // Cut the string at 30 chars - left
       if (stringLeft.length > 30)
         stringLeft =  stringLeft.substring(stringLeft.length - 1 - 30 , stringLeft.length - 1)
       var stringRight = transformedLine.substring(keywordIndex + keyword.length + 1, transformedLine.length)
 
-      // Cut the string at 30 chars
+      // Cut the string at 30 chars - right
       if (stringRight.length > 30)
         stringRight = stringRight.substring(0, scala.math.min(stringRight.length, 30))
 
